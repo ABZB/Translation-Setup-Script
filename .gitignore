@@ -179,3 +179,9 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+*.vsidx
+*.exe
+*.ps1
+env1/Scripts/activate
+env1/Scripts/activate.bat
+env1/Scripts/deactivate.bat

@@ -1,42 +1,33 @@
 import csv
-from tkinter.filedialog import askdirectory, asksaveasfile, asksaveasfilename, askopenfilename
-
+from tkinter.filedialog import askdirectory, asksaveasfilename, askopenfilename
+import codecs
+import os
 
 def build_translation_list(original_english_path, edited_english_Path, translation_path, csv_path):
     
-    orgeng = []
-    edteng = []
-    trans = []
 
     #keep, translate
     csv_trans = []
 
     #load the text files into memory
-    with open(original_english_path, "r") as original_english:
-        
-        for line in original_english:
-            try:
-                orgeng.append(line.rstrip())
-            except :
-                print(line)
+    bom = codecs.BOM_UTF16_LE
 
-
-        #orgeng = [ for line in original_english]
-    with open(edited_english_Path, "r") as edited_english:
-        edteng = [line.rstrip() for line in edited_english]
-    with open(translation_path, "r") as translated:
-        trans = [line.rstrip() for line in translated]
+    #get bytes
+    orgeng = open(original_english_path, 'rb').read()[len(bom):].decode('utf-16le').split('\r\n')
+    edteng = open(edited_english_Path, 'rb').read()[len(bom):].decode('utf-16le').split('\r\n')
+    trans = open(translation_path, 'rb').read()[len(bom):].decode('utf-16le').split('\r\n')
 
 
     file_number = -1
     org_line_number = 0
     edited_longer = False
+    x = ''
     for edit_line_number, line in enumerate(edteng):
         #skip over the seperator line
         if(line == '~~~~~~~~~~~~~~~'):
             csv_trans.append([line, ''])
         #start of new text file, add 1 to running file number
-        elif(line[:11] == 'Text File : '):
+        elif(line[:12] == 'Text File : '):
             file_number += 1
             csv_trans.append([line, ''])
             
@@ -50,37 +41,51 @@ def build_translation_list(original_english_path, edited_english_Path, translati
         #we have a file which has new text added, add line from edited to be translated
         elif(edited_longer):
             csv_trans.append(['', line])
+            print(f'{edit_line_number}, {org_line_number}, {edited_longer}, {line}, {(orgeng[org_line_number] if not(edited_longer) else x)}')
         #line in edited English doesn't match original English, add line from edited to be translated, then increment original text line number
         elif(line != orgeng[org_line_number]):
             csv_trans.append(['', line])
             org_line_number += 1
+
+
+            print(f'{edit_line_number}, {org_line_number}, {edited_longer}, {line}, {(orgeng[org_line_number] if not(edited_longer) else x)}')
         #lines are the same, keep original Spanish
         else:
             csv_trans.append([trans[org_line_number], ''])
+            org_line_number += 1
 
-    #now export CSV
-    with open(csv_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
-        writer_head = csv.writer(csvfile, dialect='excel', delimiter=',')
-        #write the header line
-        writer_head.writerow (['Target Language Already', 'To Translate', 'Translated'])
-            
-        #print(len(poke_edit_data.master_list_csv))
-        #iterate over the names in the model source list
-        #write species index to column A, personal file index to B, model index to C, species name to D, forme to E, then model/texture/animaiton filenames in 6 starts at 4, 3, 1 for XY, ORAS, SMUSUM
-        for entry in csv_trans:
-            writer_head.writerow (entry)
+
+    
+    #text that is unchanged, needs no translation
+    with open(os.path.join(csv_path, 'No_Need.txt'), 'wb') as unfile:
+        with open(os.path.join(csv_path, 'Translate_Me.txt'), 'wb') as transfile:
+        
+            #nextline
+            nextline = bytes(b'\r\x00\n\x00')
+            #for each row
+            for row in csv_trans:
+                #if no-need non-empty, write there
+                if(row[0] != ''):
+                    unfile.write(bytes(row[0].encode('utf-16le')))
+                #otherwise write to translation file
+                else:
+                    transfile.write(bytes(row[1].encode('utf-16le')))
+                #write newline to both
+                unfile.write(nextline)
+                transfile.write(nextline)
+
 
 
 
 def built_txt_file(csv_source_path, target_txt_path):
     
     loaded_csv_file = []
-    with open(csv_source_path, newline = '', encoding='utf-8-sig') as csvfile:
+    with open(csv_source_path, newline = '', encoding = 'utf-16-le') as csvfile:
         reader_head = csv.reader(csvfile, dialect='excel', delimiter=',')
         #load csv into an array      
         loaded_csv_file = list(reader_head)
 
-    with open(target_txt_path, "w") as trgt:
+    with open(target_txt_path, "w", encoding = 'utf-16-le') as trgt:
         for rownum, row in enumerate(loaded_csv_file):
             if(rownum == 0):
                 pass
@@ -99,7 +104,7 @@ def main():
 
         match action_choice:
             case 'c':
-                build_translation_list(askopenfilename(title='Select Original Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]), askopenfilename(title='Select Edited Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]), askopenfilename(title='Select Unedited Target Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]), asksaveasfilename(title='Select Output CSV', defaultextension='.csv',filetypes= [('CSV','.csv')]))
+                build_translation_list(askopenfilename(title='Select Unedited Text File in Original Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]), askopenfilename(title='Select Edited Text File in Original Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]), askopenfilename(title='Select Unedited Text File in Target Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]), askdirectory(title='Select Output Folder'))
             case 'T':
                 built_txt_file(askopenfilename(title='Select Translated CSV', defaultextension='.csv',filetypes= [('CSV','.csv')]), asksaveasfilename(title='Create Target Language .txt', defaultextension='.txt',filetypes= [('TXT','.txt')]))
             case 'q':
