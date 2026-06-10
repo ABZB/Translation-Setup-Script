@@ -101,10 +101,13 @@ def built_txt_file(csv_source_path, target_txt_path):
             else:
                 trgt.write(row[2]) if row[2] != '' else trgt.write(row[0])
 
+
+
+
 def call_translation_services(trans_string, file_number, file_type):
 
     #game text
-    if(trans_string.encode('utf-16le') in {b'.\x00', b'!\x00', b' \x00', b' \x00 \x00', b'', b'\\\x00n\x00', b'\\\x00c\x00\\\x00n\x00', b'\r\x00\\\x00n\x00', b'', b'.\x00.\x00.\x00', b',\x00'}):
+    if(trans_string.encode('utf-16le') in {b'.\x00', b'!\x00', b' \x00', b' \x00 \x00', b'', b'\\\x00n\x00', b'\\\x00c\x00\\\x00n\x00', b'\r\x00\\\x00n\x00', b'', b'.\x00.\x00.\x00', b',\x00'} or len(trans_string) <= 1):
         return(trans_string)
 
     while True:
@@ -313,21 +316,35 @@ def auto_translate(original_english_path, edited_english_path, translation_path,
             
             
             #seperator
-            if(line == '~~~~~~~~~~~~~~~'):
+            if(line == '~~~~~~~~~~~~~~~'):# and file_number >= 15):
                 target.write(bytes(line.encode('utf-16le')))
             #start of new text file, add 1 to running file number
             elif(line[:12] == 'Text File : '):
                 file_number += 1
                 print(f'\nFile Number {file_number:04}, {round(edit_line_number/len(edteng)*100,2):2.2f}%', end = '\t')
-                target.write(bytes(line.encode('utf-16le')))
+                target.write(bytes(line.encode('utf-16le')))# if file_number >= 15 else 0
                 #in both case previous text file was extended and case not, org_line_number is at first tilde-set of new text file, add 3 to move to first line of text
                 edited_longer = False
                 org_line_number += 3
                 file_line_number = 0
-            #lines are the same, keep original Spanish, same in game text 119-125
-            elif(line == orgeng[org_line_number].strip() or (file_type == 'g' and ((file_number == 14 and file_line_number < 8872) or file_number in {0, 2, 5, 4, 9, 10, 11, 12, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 84, 85, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 105, 106, 107, 108, 112, 113, 114, 115, 116, 119, 120, 121, 122, 123, 124, 125, }))):
-                if(file_number > 25):
-                    target.write(bytes(strip_waits(trans[org_line_number].strip(), True).encode('utf-16le')))
+
+            elif(False):#file_number < 15):
+                
+                if(orgeng[org_line_number].strip() == '~~~~~~~~~~~~~~~' or edited_longer):
+                    edited_longer = True
+                else:
+                    org_line_number += 1
+                file_line_number += 1
+
+            #lines are the same, keep original Spanish, same in game text 119-125, same lower Z-X moves in G14
+            elif(line == orgeng[org_line_number].strip() or (file_type == 'g' and ((file_number == 14 and file_line_number < 2917) or file_number in {0, 2, 5, 4, 9, 10, 11, 12, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 84, 85, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 105, 106, 107, 108, 112, 113, 114, 115, 116, 119, 120, 121, 122, 123, 124, 125, 126}))):
+                if(file_type == 'g' and file_number == 14):
+                    target.write(bytes(trans[org_line_number].strip().encode('utf-16le')))
+                elif(file_number > 25):
+                    try:
+                        target.write(bytes(strip_waits(trans[org_line_number].strip(), True).encode('utf-16le')))
+                    except:
+                        pass
                 else:
                     target.write(bytes(strip_waits(trans[org_line_number].strip()).encode('utf-16le')))
                 
@@ -346,19 +363,8 @@ def auto_translate(original_english_path, edited_english_path, translation_path,
                     org_line_number += 1
                 file_line_number += 1
 
-            #if "the" (from they're or they or their) and "it" are in the same location in edited/original respectively, write original Spanish
-            #they/it, their/its, they're it's
-            elif((abs(line.lower().find('they') - orgeng[org_line_number].strip().find('it')) <= 1) or (abs(line.lower().find('their') - orgeng[org_line_number].strip().find('its')) <= 1) or (abs(line.lower().find("they're") - orgeng[org_line_number].strip().find("it's")) <= 1) and orgeng[org_line_number].strip().find('it') != -1):
-                target.write(bytes(trans[org_line_number].strip().encode('utf-16le')))
-
-                if(orgeng[org_line_number].strip() == '~~~~~~~~~~~~~~~' or edited_longer):
-                    edited_longer = True
-                else:
-                    org_line_number += 1
-                file_line_number += 1
-
             #if second character in original is ~, translate
-            elif(orgeng[org_line_number].strip()[1] == '~'):
+            elif(len(orgeng[org_line_number].strip()) > 1 and orgeng[org_line_number].strip()[1] == '~'):
                 translate_right_things(target, line, file_number, file_type, file_line_number)
                 trans_count += 1
                 #check if the original thing is tildes, which means we've run out of lines there, don't increment original line number, and also set edited_longer to True so we just run through the rest of the new lines
@@ -367,15 +373,27 @@ def auto_translate(original_english_path, edited_english_path, translation_path,
                 else:
                     org_line_number += 1
                 file_line_number += 1
-
-
-
             #otherwise we have a line of actual text in the edited file
             #we have a file which has new text added, add translated line from edited
             elif(edited_longer):
                 translate_right_things(target, line, file_number, file_type, file_line_number)
                 trans_count += 1
                 file_line_number += 1
+
+            #if "the" (from they're or they or their) and "it" are in the same location in edited/original respectively, write original Spanish
+            #they/it, their/its, they're it's
+            #also do this if possessive and it's not definitely new (either second character ~ or edited longer cases above)
+            elif((line.lower().find('they ') > -1 and orgeng[org_line_number].strip().lower().find('it ') > -1 and orgeng[org_line_number].strip().lower()[line.lower().find('they ')] == 'i') or (line.lower().find('their ') > -1 and orgeng[org_line_number].strip().lower().find('its ') > -1 and orgeng[org_line_number].strip().lower()[line.lower().find('their ')] == 'i') or (line.lower().find("they’re ") > -1 and orgeng[org_line_number].strip().lower().find("it’s ") > -1  and orgeng[org_line_number].strip().lower()[line.lower().find('they’re ')] == 'i') or (line.lower().find('thems') > -1 and orgeng[org_line_number].strip().lower().find('its') > -1  and orgeng[org_line_number].strip().lower()[line.lower().find('thems ')] == 'i') or line.lower().find("’s") >= 6):
+                target.write(bytes(trans[org_line_number].strip().encode('utf-16le')))
+
+                if(orgeng[org_line_number].strip() == '~~~~~~~~~~~~~~~' or edited_longer):
+                    edited_longer = True
+                else:
+                    org_line_number += 1
+                file_line_number += 1
+
+
+
             #line in edited English doesn't match original English, add line from edited to be translated, then increment original text line number
             elif(line != orgeng[org_line_number].strip()):
                 translate_right_things(target, line, file_number, file_type, file_line_number)
@@ -388,8 +406,8 @@ def auto_translate(original_english_path, edited_english_path, translation_path,
                 file_line_number += 1
             #new line
             target.write(nextline)
-            print(f'{round(edit_line_number/len(edteng)*100,2):2.2f}%', end = '\t') if trans_count%32 == 0 else 0
-    print(f'\n\nTranslated {trans_count} lines\n')
+            print(f'{round(edit_line_number/len(edteng)*100,2):2.2f}%', end = '\t') if file_line_number%32 == 0 else 0
+    print(f'\n\nTranslated {trans_count} lines\n')# if file_number >= 15 else 0
 
 def main():
 
